@@ -21,26 +21,24 @@ func TestRunCmd_OutputPrinted(t *testing.T) {
 		writeJSON(w, http.StatusOK, map[string]any{"id": "sb-run", "state": "running"})
 	})
 
-	// POST processes: immediately return exited process.
+	// POST processes: create. GET processes: list (SDK v0.1.1+ polls via LIST).
 	mux.HandleFunc("/v1/sandboxes/sb-run/processes", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
+		switch r.Method {
+		case http.MethodPost:
+			writeJSON(w, http.StatusCreated, map[string]any{
+				"id":        "proc-1",
+				"state":     "exited",
+				"exit_code": 0,
+			})
+		case http.MethodGet:
+			writeJSON(w, http.StatusOK, map[string]any{
+				"processes": []map[string]any{
+					{"id": "proc-1", "state": "exited", "exit_code": 0},
+				},
+			})
+		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
 		}
-		writeJSON(w, http.StatusCreated, map[string]any{
-			"id":        "proc-1",
-			"state":     "exited",
-			"exit_code": 0,
-		})
-	})
-
-	// GET process: return exited.
-	mux.HandleFunc("/v1/sandboxes/sb-run/processes/proc-1", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"id":        "proc-1",
-			"state":     "exited",
-			"exit_code": 0,
-		})
 	})
 
 	// GET process logs.
@@ -77,19 +75,27 @@ func TestRunCmd_CommandPassedToShell(t *testing.T) {
 		writeJSON(w, http.StatusOK, map[string]any{"id": "sb-sh", "state": "running"})
 	})
 	mux.HandleFunc("/v1/sandboxes/sb-sh/processes", func(w http.ResponseWriter, r *http.Request) {
-		var body map[string]any
-		json.NewDecoder(r.Body).Decode(&body)
-		if cmds, ok := body["command"].([]interface{}); ok {
-			for _, c := range cmds {
-				capturedCmd = append(capturedCmd, c.(string))
+		switch r.Method {
+		case http.MethodPost:
+			var body map[string]any
+			json.NewDecoder(r.Body).Decode(&body)
+			if cmds, ok := body["command"].([]interface{}); ok {
+				for _, c := range cmds {
+					capturedCmd = append(capturedCmd, c.(string))
+				}
 			}
+			writeJSON(w, http.StatusCreated, map[string]any{
+				"id": "proc-sh", "state": "exited", "exit_code": 0,
+			})
+		case http.MethodGet:
+			writeJSON(w, http.StatusOK, map[string]any{
+				"processes": []map[string]any{
+					{"id": "proc-sh", "state": "exited", "exit_code": 0},
+				},
+			})
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-		writeJSON(w, http.StatusCreated, map[string]any{
-			"id": "proc-sh", "state": "exited", "exit_code": 0,
-		})
-	})
-	mux.HandleFunc("/v1/sandboxes/sb-sh/processes/proc-sh", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"id": "proc-sh", "state": "exited", "exit_code": 0})
 	})
 	mux.HandleFunc("/v1/sandboxes/sb-sh/processes/proc-sh/logs", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
