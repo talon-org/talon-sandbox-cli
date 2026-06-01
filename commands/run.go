@@ -3,6 +3,8 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -63,6 +65,9 @@ Examples:
 
 // NewSpawnCmd returns the `tsb spawn` command.
 func NewSpawnCmd(cfg *config.Config) *cobra.Command {
+	// exposeRaw 收集 --expose 的原始字符串值（可重复使用，也支持逗号分隔）
+	var exposeRaw []string
+
 	cmd := &cobra.Command{
 		Use:   "spawn <id> <cmd>",
 		Short: "Spawn a process asynchronously inside a sandbox",
@@ -72,10 +77,19 @@ The process ID is printed to stdout. Use 'tsb logs' to view output.
 
 Examples:
   tsb spawn sb-123 "npm run dev"
-  PID=$(tsb spawn sb-123 "python server.py")`,
+  tsb spawn sb-123 "npm run dev" --expose 5173
+  tsb spawn sb-123 "python server.py" --expose 5173 --expose 3000
+  tsb spawn sb-123 "vite" --expose 5173,3000
+  PID=$(tsb spawn sb-123 "python server.py" --expose 8080)`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sandboxID, spawnCmd := args[0], args[1]
+
+			// 解析 --expose：支持逗号分隔（--expose 5173,3000）和多次重复（--expose 5173 --expose 3000）
+			exposePorts, err := parseExposeFlag(exposeRaw)
+			if err != nil {
+				return fmt.Errorf("--expose: %w", err)
+			}
 
 			cfgCtx, err := cfg.CurrentCtx()
 			if err != nil {
@@ -87,7 +101,7 @@ Examples:
 				return err
 			}
 
-			proc, err := pc.SpawnProcess(cmd.Context(), sandboxID, spawnCmd)
+			proc, err := pc.SpawnProcess(cmd.Context(), sandboxID, spawnCmd, exposePorts)
 			if err != nil {
 				return fmt.Errorf("spawn: %w", err)
 			}
@@ -97,7 +111,43 @@ Examples:
 		},
 	}
 
+	// StringArrayVar 支持多次 --expose（每次一个值）；parseExposeFlag 再处理逗号分隔
+	cmd.Flags().StringArrayVar(&exposeRaw, "expose", nil,
+		"声明进程对外暴露的端口，可重复或逗号分隔（如 --expose 5173 或 --expose 5173,3000）")
+
 	return cmd
+}
+
+// parseExposeFlag 将 --expose 原始字符串列表解析为 int 端口切片。
+// 支持两种写法：
+//   - 多次重复：--expose 5173 --expose 3000 → exposeRaw = ["5173", "3000"]
+//   - 逗号分隔：--expose 5173,3000         → exposeRaw = ["5173,3000"]
+//   - 混合：    --expose 5173,3000 --expose 4000
+//
+// 不传时返回 nil（向后兼容，POST body 不含 expose_ports 字段）。
+func parseExposeFlag(raw []string) ([]int, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var ports []int
+	for _, item := range raw {
+		// 每个 item 可能本身是逗号分隔列表
+		for _, part := range strings.Split(item, ",") {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			p, err := strconv.Atoi(part)
+			if err != nil {
+				return nil, fmt.Errorf("无效端口 %q：必须是正整数", part)
+			}
+			if p <= 0 || p > 65535 {
+				return nil, fmt.Errorf("端口 %d 超出范围（1-65535）", p)
+			}
+			ports = append(ports, p)
+		}
+	}
+	return ports, nil
 }
 
 // NewKillCmd returns the `tsb kill` command.

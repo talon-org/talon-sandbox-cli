@@ -126,6 +126,12 @@ Environment variables:
 		commands.NewGetCmd(cfg),
 		commands.NewRmCmd(cfg),
 
+		// 生命周期扩展：start/stop（stopped↔running），pause/resume（冻结↔解冻）
+		commands.NewStartCmd(cfg),
+		commands.NewStopCmd(cfg),
+		commands.NewPauseCmd(cfg),
+		commands.NewResumeCmd(cfg),
+
 		commands.NewRunCmd(cfg),
 		commands.NewSpawnCmd(cfg),
 		commands.NewLogsCmd(cfg),
@@ -137,10 +143,17 @@ Environment variables:
 
 		commands.NewPtyCmd(cfg),
 		commands.NewCpCmd(cfg),
+		commands.NewFsCmd(cfg),
 		commands.NewEnvCmd(cfg),
 
-		commands.NewPauseCmd(cfg),
-		commands.NewResumeCmd(cfg),
+		// 浏览器 CDP session 管理（Spec 34）
+		commands.NewBrowserCmd(cfg),
+
+		// 平台可用 baseimage 列表
+		commands.NewImagesCmd(cfg),
+
+		// 高层 agent 任务执行（Spec 38）
+		commands.NewAgentRunCmd(cfg),
 
 		commands.NewVersionCmd(cfg),
 	)

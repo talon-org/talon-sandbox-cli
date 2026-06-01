@@ -43,9 +43,15 @@ func NewProcessClient(baseURL, apiKey string) *ProcessClient {
 }
 
 // SpawnProcess calls POST /v1/sandboxes/{id}/processes and returns the ProcessInfo.
-func (c *ProcessClient) SpawnProcess(ctx context.Context, sandboxID, command string) (*ProcessInfo, error) {
+// exposePorts 为进程声明对外暴露的容器端口列表（如 []int{5173, 3000}）；
+// 空/nil 时不发送该字段，保持向后兼容。
+func (c *ProcessClient) SpawnProcess(ctx context.Context, sandboxID, command string, exposePorts []int) (*ProcessInfo, error) {
 	body := map[string]any{
 		"command": strings.Fields(command),
+	}
+	// 仅非空时写入，与服务端 StartProcessRequest.ExposePorts 语义对齐
+	if len(exposePorts) > 0 {
+		body["expose_ports"] = exposePorts
 	}
 	data, _ := json.Marshal(body)
 

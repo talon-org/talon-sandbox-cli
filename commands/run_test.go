@@ -150,3 +150,147 @@ func TestSpawnCmd_PrintsProcessID(t *testing.T) {
 		t.Errorf("spawn output = %q; want proc-xyz", got)
 	}
 }
+
+// TestSpawnCmd_ExposePorts_SingleFlag 验证单个 --expose 5173 正确写入请求体。
+func TestSpawnCmd_ExposePorts_SingleFlag(t *testing.T) {
+	var capturedBody map[string]any
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/sandboxes/sb-exp/processes", func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&capturedBody) //nolint:errcheck
+		writeJSON(w, http.StatusCreated, map[string]any{
+			"id":    "proc-exp1",
+			"state": "running",
+		})
+	})
+
+	srv := newTestServer(t, mux)
+	cfg := newTestConfig(t, srv.URL)
+
+	cmd := commands.NewSpawnCmd(cfg)
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"sb-exp", "npm run dev", "--expose", "5173"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	raw, ok := capturedBody["expose_ports"]
+	if !ok {
+		t.Fatalf("请求体缺少 expose_ports 字段，body=%v", capturedBody)
+	}
+	ports, ok := raw.([]any)
+	if !ok {
+		t.Fatalf("expose_ports 类型错误，got %T", raw)
+	}
+	if len(ports) != 1 || ports[0] != float64(5173) {
+		t.Errorf("expose_ports = %v; want [5173]", ports)
+	}
+}
+
+// TestSpawnCmd_ExposePorts_MultiFlag 验证 --expose 5173 --expose 3000（多次重复）。
+func TestSpawnCmd_ExposePorts_MultiFlag(t *testing.T) {
+	var capturedBody map[string]any
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/sandboxes/sb-exp2/processes", func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&capturedBody) //nolint:errcheck
+		writeJSON(w, http.StatusCreated, map[string]any{
+			"id":    "proc-exp2",
+			"state": "running",
+		})
+	})
+
+	srv := newTestServer(t, mux)
+	cfg := newTestConfig(t, srv.URL)
+
+	cmd := commands.NewSpawnCmd(cfg)
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"sb-exp2", "vite", "--expose", "5173", "--expose", "3000"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	raw, ok := capturedBody["expose_ports"]
+	if !ok {
+		t.Fatalf("请求体缺少 expose_ports 字段，body=%v", capturedBody)
+	}
+	ports, ok := raw.([]any)
+	if !ok {
+		t.Fatalf("expose_ports 类型错误，got %T", raw)
+	}
+	if len(ports) != 2 || ports[0] != float64(5173) || ports[1] != float64(3000) {
+		t.Errorf("expose_ports = %v; want [5173 3000]", ports)
+	}
+}
+
+// TestSpawnCmd_ExposePorts_CommaSeparated 验证 --expose 5173,3000（逗号分隔）。
+func TestSpawnCmd_ExposePorts_CommaSeparated(t *testing.T) {
+	var capturedBody map[string]any
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/sandboxes/sb-exp3/processes", func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&capturedBody) //nolint:errcheck
+		writeJSON(w, http.StatusCreated, map[string]any{
+			"id":    "proc-exp3",
+			"state": "running",
+		})
+	})
+
+	srv := newTestServer(t, mux)
+	cfg := newTestConfig(t, srv.URL)
+
+	cmd := commands.NewSpawnCmd(cfg)
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"sb-exp3", "vite", "--expose", "5173,3000"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	raw, ok := capturedBody["expose_ports"]
+	if !ok {
+		t.Fatalf("请求体缺少 expose_ports 字段，body=%v", capturedBody)
+	}
+	ports, ok := raw.([]any)
+	if !ok {
+		t.Fatalf("expose_ports 类型错误，got %T", raw)
+	}
+	if len(ports) != 2 || ports[0] != float64(5173) || ports[1] != float64(3000) {
+		t.Errorf("expose_ports = %v; want [5173 3000]", ports)
+	}
+}
+
+// TestSpawnCmd_NoExpose_BodyOmitsField 验证不传 --expose 时请求体不含 expose_ports（向后兼容）。
+func TestSpawnCmd_NoExpose_BodyOmitsField(t *testing.T) {
+	var capturedBody map[string]any
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/sandboxes/sb-noexp/processes", func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&capturedBody) //nolint:errcheck
+		writeJSON(w, http.StatusCreated, map[string]any{
+			"id":    "proc-noexp",
+			"state": "running",
+		})
+	})
+
+	srv := newTestServer(t, mux)
+	cfg := newTestConfig(t, srv.URL)
+
+	cmd := commands.NewSpawnCmd(cfg)
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"sb-noexp", "npm run dev"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	if _, has := capturedBody["expose_ports"]; has {
+		t.Errorf("不应包含 expose_ports 字段，body=%v", capturedBody)
+	}
+}
