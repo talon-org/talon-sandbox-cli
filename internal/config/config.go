@@ -16,6 +16,12 @@ const (
 	// DefaultContextName is the name of the default context.
 	DefaultContextName = "default"
 
+	// DefaultServer 是未经 login / 未设 TALON_SANDBOX_SERVER 时回落的官方托管
+	// 端点。让用户只配 TALON_SANDBOX_API_KEY(或 login 拿到 key)即可直接使用,
+	// 与各语言 SDK 的默认值保持一致。自部署用户用 `tsb login --server URL` 或
+	// TALON_SANDBOX_SERVER 覆盖。
+	DefaultServer = "https://api.sandbox.talon.net.cn"
+
 	// AuthTypeCookie is cookie-based auth (username/password login).
 	AuthTypeCookie = "cookie"
 	// AuthTypeAPIKey is API key-based auth.

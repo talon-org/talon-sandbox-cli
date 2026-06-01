@@ -22,8 +22,9 @@ func Opts(cfg *config.Config, ctx *config.Context) ([]talonsandbox.Option, error
 	if s := os.Getenv("TALON_SANDBOX_SERVER"); s != "" && server == "" {
 		server = s
 	}
+	// 未 login / 未设 env 时回落官方托管端点,只配 API key 即可直接用。
 	if server == "" {
-		return nil, fmt.Errorf("no server configured — run `tsb login --server URL` or set TALON_SANDBOX_SERVER")
+		server = config.DefaultServer
 	}
 
 	opts := []talonsandbox.Option{talonsandbox.WithBaseURL(server)}
