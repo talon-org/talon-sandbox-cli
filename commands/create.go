@@ -32,7 +32,7 @@ func NewCreateCmd(cfg *config.Config) *cobra.Command {
 		Long: `Create a new sandbox and optionally wait for it to reach a target state.
 
 Examples:
-  tsb create --image alpine-3.20 --wait running
+  tsb create --image talon-alpine --wait running
   tsb create --resources cpu=2,memory=4GiB --network allowlist -o id
   tsb create --wait running --spawn "npm run dev" --expose 5173 --print-url`,
 		RunE: func(cmd *cobra.Command, args []string) error {

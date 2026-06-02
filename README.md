@@ -31,7 +31,7 @@ Config file: `~/.config/talon-sandbox/config.yaml` (XDG).
 tsb login --server https://api.talon.example.com --api-key ask_xxxxx
 
 # Create a sandbox and wait for it
-tsb create --image alpine-3.20 --resources cpu=2,memory=4GiB --wait running
+tsb create --image talon-alpine --resources cpu=2,memory=4GiB --wait running
 
 # Run a command
 tsb run sb-abc123 "echo hello"
