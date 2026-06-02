@@ -85,11 +85,12 @@ func (e *EnvClient) Remove(ctx context.Context, sandboxID, key string) error {
 	return nil
 }
 
-// Set sets a single env var (direct HTTP, mirrors SDK's env.Set).
+// Set sets a single env var via PUT /v1/sandboxes/{id}/env/{key}.
+// The key is in the path; the body carries only {"value": "..."}.
 func (e *EnvClient) Set(ctx context.Context, sandboxID, key, value string) error {
-	payload, _ := json.Marshal(map[string]string{"key": key, "value": value})
-	u := fmt.Sprintf("%s/v1/sandboxes/%s/env", e.baseURL, sandboxID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(payload))
+	payload, _ := json.Marshal(map[string]string{"value": value})
+	u := fmt.Sprintf("%s/v1/sandboxes/%s/env/%s", e.baseURL, sandboxID, key)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
