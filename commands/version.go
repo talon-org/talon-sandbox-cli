@@ -14,6 +14,17 @@ import (
 // go build -ldflags "-X x.xgit.pro/dark/talon-sandbox-cli/commands.BuildVersion=v1.0.0"
 var BuildVersion = "dev"
 
+// init 把 CLI 真实版本号同步给 apiclient,供出站请求的 User-Agent
+// (talon-sandbox-cli/<version>)使用。commands.BuildVersion 仍是唯一的
+// -ldflags 注入点;反向让 apiclient import commands 会构成循环,故由这里单向
+// 推送。BuildVersion 还是默认 "dev" 时不覆盖,让 apiclient 自行回落到
+// go module 的 build info。
+func init() {
+	if BuildVersion != "" && BuildVersion != "dev" {
+		apiclient.Version = BuildVersion
+	}
+}
+
 // NewVersionCmd returns the `tsb version` command.
 func NewVersionCmd(cfg *config.Config) *cobra.Command {
 	return &cobra.Command{

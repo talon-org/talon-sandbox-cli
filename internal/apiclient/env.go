@@ -110,6 +110,7 @@ func (e *EnvClient) Set(ctx context.Context, sandboxID, key, value string) error
 }
 
 func (e *EnvClient) setAuth(req *http.Request) {
+	setUserAgent(req)
 	if e.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+e.apiKey)
 	}

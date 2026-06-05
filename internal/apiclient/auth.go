@@ -59,6 +59,7 @@ func (a *AuthClient) Login(ctx context.Context, username, password, tenant strin
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	setUserAgent(req) // login 不走 setAuth(无 token),单独打 UA
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
@@ -122,6 +123,7 @@ func (a *AuthClient) Me(ctx context.Context) (*MeResponse, error) {
 }
 
 func (a *AuthClient) setAuth(req *http.Request) {
+	setUserAgent(req)
 	if a.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+a.apiKey)
 	}

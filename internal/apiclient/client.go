@@ -27,7 +27,11 @@ func Opts(cfg *config.Config, ctx *config.Context) ([]talonsandbox.Option, error
 		server = config.DefaultServer
 	}
 
-	opts := []talonsandbox.Option{talonsandbox.WithBaseURL(server)}
+	// withUserAgent 必须最先入列:它经 WithHTTPClient 替换整个 http.Client(含
+	// cookie jar + UA 注入 Transport),后续 WithAPIKey 等只改 token 不动 client,
+	// 不会覆盖掉 UA。这样 SDK 所有出站 HTTP(含 createSandbox)都带 CLI 的 UA,
+	// 后端据此把请求归因到 created_from=cli。
+	opts := []talonsandbox.Option{talonsandbox.WithBaseURL(server), withUserAgent()}
 
 	// API key: env takes precedence.
 	if key := os.Getenv("TALON_SANDBOX_API_KEY"); key != "" {

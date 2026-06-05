@@ -62,9 +62,7 @@ func (c *ProcessClient) SpawnProcess(ctx context.Context, sandboxID, command str
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	}
+	c.setAuth(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -92,9 +90,7 @@ func (c *ProcessClient) GetProcess(ctx context.Context, sandboxID, procID string
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	}
+	c.setAuth(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -125,9 +121,7 @@ func (c *ProcessClient) GetProcessLogs(ctx context.Context, sandboxID, procID st
 		return nil, err
 	}
 	req.Header.Set("Accept", "text/plain")
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	}
+	c.setAuth(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -152,9 +146,7 @@ func (c *ProcessClient) KillProcess(ctx context.Context, sandboxID, procID strin
 	if err != nil {
 		return err
 	}
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	}
+	c.setAuth(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -165,4 +157,12 @@ func (c *ProcessClient) KillProcess(ctx context.Context, sandboxID, procID strin
 		return fmt.Errorf("kill process: HTTP %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// setAuth 给请求统一打上 CLI 的 User-Agent 与 Bearer 鉴权头。
+func (c *ProcessClient) setAuth(req *http.Request) {
+	setUserAgent(req)
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 }
