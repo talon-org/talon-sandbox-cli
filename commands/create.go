@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -24,6 +25,7 @@ func NewCreateCmd(cfg *config.Config) *cobra.Command {
 		exposePort  int
 		printURL    bool
 		outputFmt   string
+		labelPairs  []string // --label key=value,可重复
 	)
 
 	cmd := &cobra.Command{
@@ -47,6 +49,12 @@ Examples:
 				return fmt.Errorf("--resources: %w", err)
 			}
 
+			// Parse --label key=value pairs into a map. Repeatable flag.
+			labels, err := parseLabels(labelPairs)
+			if err != nil {
+				return fmt.Errorf("--label: %w", err)
+			}
+
 			opts := talonsandbox.Opts{
 				Image:   image,
 				Network: network,
@@ -56,6 +64,7 @@ Examples:
 				},
 				Timeout: idleTimeout,
 				TTL:     ttl,
+				Labels:  labels,
 			}
 
 			// If --wait is explicitly set to empty string, skip waiting.
@@ -132,6 +141,29 @@ Examples:
 	cmd.Flags().IntVar(&exposePort, "expose", 0, "Expose a port after create+wait (e.g. 5173)")
 	cmd.Flags().BoolVar(&printURL, "print-url", false, "Print the expose URL on stdout (requires --expose)")
 	cmd.Flags().StringVarP(&outputFmt, "output", "o", "table", "Output format: table|json|id")
+	cmd.Flags().StringArrayVar(&labelPairs, "label", nil, `Custom metadata as key=value (repeatable), e.g. --label end_user_id=u_8821 --label plan=pro`)
 
 	return cmd
+}
+
+// parseLabels turns repeated --label key=value flags into a map.
+// Empty input → nil (no labels). A pair missing "=" or with an empty key is an error.
+// Value may contain "=" (only the first "=" splits); value may be empty.
+func parseLabels(pairs []string) (map[string]string, error) {
+	if len(pairs) == 0 {
+		return nil, nil
+	}
+	out := make(map[string]string, len(pairs))
+	for _, p := range pairs {
+		k, v, ok := strings.Cut(p, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid label %q, expected key=value", p)
+		}
+		k = strings.TrimSpace(k)
+		if k == "" {
+			return nil, fmt.Errorf("invalid label %q, key is empty", p)
+		}
+		out[k] = v
+	}
+	return out, nil
 }
